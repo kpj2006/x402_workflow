@@ -1,0 +1,93 @@
+name: Reusable Sentinel Health Check Workflow
+
+on:
+  workflow_call:
+    inputs:
+      repo_name:
+        description: 'Repository name (owner/repo) - optional, checks all if not provided'
+        required: false
+        type: string
+    secrets:
+      GIST_PAT:
+        required: true
+      DISCORD_BOT_TOKEN:
+        required: true
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout automation scripts
+        uses: actions/checkout@v4
+        with:
+          repository: aossie/contributor-automation
+          path: automation
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r automation/requirements.txt
+          
+      - name: Run health check
+        id: health_check
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ inputs.repo_name }}
+        run: |
+          cd automation
+          python scripts/health_check.py \
+            --gist-pat "$GIST_PAT" \
+            --github-token "$GITHUB_TOKEN" \
+            --repo-name "$REPO_NAME" \
+            --output-file ../health_report.json
+          
+      - name: Parse health report
+        id: parse_report
+        run: |
+          if [ -f health_report.json ]; then
+            FREED=$(jq -r '.sentinels_freed' health_report.json)
+            REASSIGNED=$(jq -r '.issues_reassigned' health_report.json)
+            ESCALATED=$(jq -r '.issues_escalated' health_report.json)
+            WARNINGS=$(jq -r '.warnings_sent' health_report.json)
+            
+            echo "freed=$FREED" >> $GITHUB_OUTPUT
+            echo "reassigned=$REASSIGNED" >> $GITHUB_OUTPUT
+            echo "escalated=$ESCALATED" >> $GITHUB_OUTPUT
+            echo "warnings=$WARNINGS" >> $GITHUB_OUTPUT
+          else
+            echo "freed=0" >> $GITHUB_OUTPUT
+            echo "reassigned=0" >> $GITHUB_OUTPUT
+            echo "escalated=0" >> $GITHUB_OUTPUT
+            echo "warnings=0" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Post summary to Knights channel
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          FREED: ${{ steps.parse_report.outputs.freed }}
+          REASSIGNED: ${{ steps.parse_report.outputs.reassigned }}
+          ESCALATED: ${{ steps.parse_report.outputs.escalated }}
+          WARNINGS: ${{ steps.parse_report.outputs.warnings }}
+        run: |
+          cd automation
+          python scripts/discord_manager.py \
+            --action post_health_summary \
+            --freed "$FREED" \
+            --reassigned "$REASSIGNED" \
+            --escalated "$ESCALATED" \
+            --warnings "$WARNINGS" \
+            --bot-token "$DISCORD_BOT_TOKEN"
+            
+      - name: Upload detailed report
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-check-report
+          path: health_report.json
+          retention-days: 30

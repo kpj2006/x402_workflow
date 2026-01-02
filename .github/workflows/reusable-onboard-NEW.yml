@@ -1,0 +1,144 @@
+name: Reusable Onboarding Workflow
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'Pull request number'
+        required: true
+        type: number
+      repo_name:
+        description: 'Repository name (owner/repo)'
+        required: true
+        type: string
+      pr_author:
+        description: 'PR author username'
+        required: true
+        type: string
+      discord_id:
+        description: 'Discord user ID'
+        required: true
+        type: string
+      wallet:
+        description: 'Wallet address'
+        required: true
+        type: string
+      lines_changed:
+        description: 'Total lines changed in first PR'
+        required: true
+        type: number
+    secrets:
+      GIST_PAT:
+        required: true
+      DISCORD_BOT_TOKEN:
+        required: true
+      DISCORD_GUILD_ID:
+        required: true
+      DISCORD_APPRENTICE_ROLE_ID:
+        required: true
+
+jobs:
+  onboard:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout automation scripts
+        uses: actions/checkout@v4
+        with:
+          repository: aossie/contributor-automation
+          path: automation
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r automation/requirements.txt
+          
+      - name: Check if already onboarded
+        id: check_existing
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+        run: |
+          cd automation
+          python scripts/contributor_checker.py \
+            --action check_exists \
+            --pr-author "$PR_AUTHOR" \
+            --gist-pat "$GIST_PAT" \
+            --output-file ../check_result.json
+          
+          if [ -f ../check_result.json ]; then
+            EXISTS=$(jq -r '.exists' ../check_result.json)
+            echo "exists=$EXISTS" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Skip if already onboarded
+        if: steps.check_existing.outputs.exists == 'true'
+        run: |
+          echo "✓ Contributor already onboarded. Skipping."
+          exit 0
+          
+      - name: Create TOML entry in Gist
+        if: steps.check_existing.outputs.exists == 'false'
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+          DISCORD_ID: ${{ inputs.discord_id }}
+          WALLET: ${{ inputs.wallet }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          LINES_CHANGED: ${{ inputs.lines_changed }}
+        run: |
+          cd automation
+          python scripts/gist_manager.py \
+            --action create \
+            --username "$PR_AUTHOR" \
+            --discord-id "$DISCORD_ID" \
+            --wallet "$WALLET" \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --lines-changed "$LINES_CHANGED" \
+            --gist-pat "$GIST_PAT"
+            
+      - name: Assign Discord Apprentice role
+        if: steps.check_existing.outputs.exists == 'false'
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          DISCORD_ROLE_ID: ${{ secrets.DISCORD_APPRENTICE_ROLE_ID }}
+          DISCORD_USER_ID: ${{ inputs.discord_id }}
+        run: |
+          curl -f -X PUT \
+            -H "Authorization: Bot $DISCORD_BOT_TOKEN" \
+            "https://discord.com/api/v10/guilds/$DISCORD_GUILD_ID/members/$DISCORD_USER_ID/roles/$DISCORD_ROLE_ID"
+            
+      - name: Post success message
+        if: steps.check_existing.outputs.exists == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = [
+              "✅ **Onboarding Complete!**",
+              "",
+              `@${{ inputs.pr_author }}, you've been successfully onboarded as an **Apprentice**!`,
+              "",
+              "**Next Steps:**",
+              "- Check Discord for your new Apprentice role",
+              "- Submit 3 quality PRs to be promoted to **Sentinel**",
+              "- As a Sentinel, you'll get assigned issues with 5-day deadlines",
+              "",
+              "Happy contributing! 🚀"
+            ].join("\\n");
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ inputs.pr_number }},
+              body
+            });

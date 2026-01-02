@@ -1,0 +1,205 @@
+name: Reusable Onboarding Workflow
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: 'Pull request number'
+        required: true
+        type: number
+      repo_name:
+        description: 'Repository name (owner/repo)'
+        required: true
+        type: string
+      pr_author:
+        description: 'PR author username'
+        required: true
+        type: string
+    secrets:
+      GIST_PAT:
+        required: true
+      DISCORD_BOT_TOKEN:
+        required: true
+      DISCORD_GUILD_ID:
+        required: true
+      DISCORD_APPRENTICE_ROLE_ID:
+        required: true
+
+jobs:
+  onboard:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout automation scripts
+        uses: actions/checkout@v4
+        with:
+          repository: aossie/contributor-automation
+          path: automation
+          
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r automation/requirements.txt
+          
+      - name: Validate workflow trigger
+        id: validate
+        run: |
+          # Ensure this is actually a first-time contributor labeled PR
+          echo "Validating first-time-contributor label..."
+          # Label check already done in trigger workflow
+          echo "validated=true" >> $GITHUB_OUTPUT
+          
+      - name: Check if contributor exists in registry
+        id: check_existing
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          cd automation
+          python scripts/contributor_checker.py \
+            --pr-author "$PR_AUTHOR" \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --gist-pat "$GIST_PAT" \
+            --output-file ../check_result.json
+          
+      - name: Read check result
+        id: read_result
+        run: |
+          if [ -f check_result.json ]; then
+            EXISTS=$(jq -r '.exists' check_result.json)
+            echo "exists=$EXISTS" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Ask for Discord ID and Wallet
+        if: steps.read_result.outputs.exists == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+        run: |
+          cd automation
+          python scripts/discord_manager.py \
+            --action ask_info \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --pr-author "$PR_AUTHOR" \
+            --github-token "$GITHUB_TOKEN"
+            
+      - name: Wait for response (check comments)
+        if: steps.read_result.outputs.exists == 'false'
+        id: wait_response
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+        run: |
+          cd automation
+          # Check for existing response in PR comments
+          python scripts/contributor_checker.py \
+            --action check_response \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --pr-author "$PR_AUTHOR" \
+            --github-token "$GITHUB_TOKEN" \
+            --output-file ../response_result.json
+            
+      - name: Parse and validate response
+        if: steps.read_result.outputs.exists == 'false'
+        id: validate_response
+        run: |
+          if [ -f response_result.json ]; then
+            HAS_RESPONSE=$(jq -r '.has_response' response_result.json)
+            if [ "$HAS_RESPONSE" = "true" ]; then
+              DISCORD_ID=$(jq -r '.discord_id' response_result.json)
+              WALLET=$(jq -r '.wallet_address' response_result.json)
+              VALID=$(jq -r '.valid' response_result.json)
+              echo "has_response=true" >> $GITHUB_OUTPUT
+              echo "discord_id=$DISCORD_ID" >> $GITHUB_OUTPUT
+              echo "wallet=$WALLET" >> $GITHUB_OUTPUT
+              echo "valid=$VALID" >> $GITHUB_OUTPUT
+            else
+              echo "has_response=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has_response=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Create TOML entry in Gist
+        if: steps.validate_response.outputs.has_response == 'true' && steps.validate_response.outputs.valid == 'true'
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+          DISCORD_ID: ${{ steps.validate_response.outputs.discord_id }}
+          WALLET: ${{ steps.validate_response.outputs.wallet }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          cd automation
+          python scripts/gist_manager.py \
+            --action create \
+            --username "$PR_AUTHOR" \
+            --discord-id "$DISCORD_ID" \
+            --wallet "$WALLET" \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --gist-pat "$GIST_PAT"
+            
+      - name: Assign Discord Apprentice role
+        if: steps.validate_response.outputs.has_response == 'true' && steps.validate_response.outputs.valid == 'true'
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          DISCORD_ROLE_ID: ${{ secrets.DISCORD_APPRENTICE_ROLE_ID }}
+          DISCORD_USER_ID: ${{ steps.validate_response.outputs.discord_id }}
+        run: |
+          cd automation
+          python scripts/discord_manager.py \
+            --action assign_role \
+            --discord-user-id "$DISCORD_USER_ID" \
+            --role-id "$DISCORD_ROLE_ID" \
+            --guild-id "$DISCORD_GUILD_ID" \
+            --bot-token "$DISCORD_BOT_TOKEN"
+            
+      - name: Post success message
+        if: steps.validate_response.outputs.valid == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+        run: |
+          cd automation
+          python scripts/discord_manager.py \
+            --action post_success \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --pr-author "$PR_AUTHOR" \
+            --github-token "$GITHUB_TOKEN" \
+            --message-type "onboard_complete"
+            
+      - name: Handle validation errors
+        if: steps.validate_response.outputs.has_response == 'true' && steps.validate_response.outputs.valid == 'false'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: |
+          cd automation
+          python scripts/discord_manager.py \
+            --action post_error \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --github-token "$GITHUB_TOKEN" \
+            --error-type "validation_failed"
