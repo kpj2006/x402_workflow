@@ -1,5 +1,11 @@
-"""
-Sentinel assigner - Find and assign issues to available Sentinels.
+"""n
+Sentinel Assigner - Find and assign issues to available Sentinels.
+
+Logic:
+- Finds Sentinels with capacity (< max_concurrent assignments)
+- Excludes blocked Sentinels
+- Randomly selects from available pool for fair distribution
+- Calculates 5-day deadline from assignment
 """
 
 import argparse
@@ -16,17 +22,18 @@ from github import Github
 
 def find_available_sentinel(gist_pat: str, max_concurrent: int = 1) -> Optional[Dict[str, Any]]:
     """
-    Find a random available Sentinel.
+    Find a random available Sentinel from the registry.
+    Returns Sentinel username, Discord ID, and assignment details.
     
-    Criteria:
+    Selection criteria:
     - current_role = "Sentinel"
     - Total assignments (auto + manual) < max_concurrent
     - status.blocked = false
     
     Edge cases:
-    - No Sentinels available
-    - All Sentinels at capacity
-    - Corrupted TOML files
+    - No Sentinels available → returns None
+    - All Sentinels at capacity → returns None
+    - Corrupted TOML files → skipped
     """
     import subprocess
     import tempfile

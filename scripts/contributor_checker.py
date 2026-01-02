@@ -19,10 +19,11 @@ from utils import (
 
 def clone_gist_repo(gist_pat: str) -> str:
     """
-    Clone Gist repository to temp location.
+    Clone or update Gist repository to temp location.
+    Returns path to local Gist repository.
     
     Edge cases:
-    - Gist already cloned (reuse)
+    - Gist already cloned (pulls latest)
     - Git not available
     - Authentication failure
     """

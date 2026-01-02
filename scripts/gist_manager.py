@@ -1,5 +1,12 @@
-"""
-Gist manager - CRUD operations for contributor TOML files in Gist.
+"""n
+Gist Manager - CRUD operations for contributor TOML files in Gist.
+
+Actions:
+- create: Create new contributor entry (onboarding)
+- update_pr: Add new PR to existing contributor
+- promote_to_sentinel: Update role from Apprentice to Sentinel
+- add_manual_assignment: Track manually assigned issues
+- add_auto_assignment: Track auto-assigned issues (Sentinel)
 """
 
 import argparse
@@ -18,6 +25,10 @@ from utils import (
 
 
 class GistManager:
+    """
+    Manages contributor TOML files stored in a GitHub Gist.
+    Handles cloning, updating, and committing changes.
+    """
     def __init__(self, gist_pat: str):
         self.gist_pat = gist_pat
         self.config = load_config()
@@ -25,7 +36,7 @@ class GistManager:
         self.repo_dir = None
     
     def clone_repo(self):
-        """Clone Gist repository."""
+        """Clone or pull latest from Gist repository to temp directory."""
         import tempfile
         
         self.repo_dir = os.path.join(tempfile.gettempdir(), 'aossie_gist_repo')

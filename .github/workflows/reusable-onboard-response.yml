@@ -1,3 +1,5 @@
+# This workflow validates contributor's Discord/wallet response after first merged PR
+# Parses comment, validates format, then calls onboard-NEW to complete onboarding
 name: Reusable Onboarding Response Handler
 
 on:
@@ -30,6 +32,7 @@ on:
         required: true
 
 jobs:
+  # Parse and validate the comment format, extract Discord ID and wallet
   validate:
     runs-on: ubuntu-latest
     outputs:
@@ -111,8 +114,9 @@ jobs:
             core.setOutput("lines_changed", pr.additions + pr.deletions);
             core.setOutput("validated", "true");
   
+  # Call the onboard-NEW workflow with validated data
+  # Note: Reusable workflows must be called at job level, not within steps
   complete-onboarding:
-    # you cannot call a reusable workflow from within a step. It must be a job.
     needs: validate
     if: needs.validate.outputs.validated == 'true'
     uses: automation-workflows/contributor-automation/.github/workflows/reusable-onboard-NEW.yml@main

@@ -1,3 +1,5 @@
+# This workflow handles complete onboarding of first-time contributors
+# Creates Gist entry, assigns Discord Apprentice role, posts success message
 name: Reusable Onboarding Workflow
 
 on:
@@ -42,6 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # Clone automation scripts repository
       - name: Checkout automation scripts
         uses: actions/checkout@v4
         with:
@@ -57,7 +60,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r automation/requirements.txt
-          
+      
+      # Prevent duplicate onboarding - check if user already exists in registry
       - name: Check if already onboarded
         id: check_existing
         env:
@@ -83,7 +87,8 @@ jobs:
         run: |
           echo "✓ Contributor already onboarded. Skipping."
           exit 0
-          
+      
+      # Create new TOML entry in Gist with contributor info and first PR
       - name: Create TOML entry in Gist
         if: steps.check_existing.outputs.exists == 'false'
         env:
@@ -105,7 +110,8 @@ jobs:
             --pr-number "$PR_NUMBER" \
             --lines-changed "$LINES_CHANGED" \
             --gist-pat "$GIST_PAT"
-            
+      
+      # Assign Apprentice role via Discord API
       - name: Assign Discord Apprentice role
         if: steps.check_existing.outputs.exists == 'false'
         env:
@@ -117,7 +123,8 @@ jobs:
           curl -f -X PUT \
             -H "Authorization: Bot $DISCORD_BOT_TOKEN" \
             "https://discord.com/api/v10/guilds/$DISCORD_GUILD_ID/members/$DISCORD_USER_ID/roles/$DISCORD_ROLE_ID"
-            
+      
+      # Comment on PR to confirm onboarding and explain next steps
       - name: Post success message
         if: steps.check_existing.outputs.exists == 'false'
         uses: actions/github-script@v7

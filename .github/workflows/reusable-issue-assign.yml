@@ -1,3 +1,5 @@
+# This workflow handles automatic issue routing and assignment
+# Routes good-first-issues to Apprentices or assigns to available Sentinels
 name: Reusable Issue Assignment Workflow
 
 on:
@@ -26,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # Clone automation scripts repository
       - name: Checkout automation scripts
         uses: actions/checkout@v4
         with:
@@ -41,7 +44,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r automation/requirements.txt
-          
+      
+      # Determine if issue should go to Apprentices or Sentinels
       - name: Route issue
         id: route
         env:
@@ -56,7 +60,8 @@ jobs:
           REASON=$(jq -r '.reason' ../routing_decision.json)
           echo "route_to=$ROUTE_TO" >> $GITHUB_OUTPUT
           echo "reason=$REASON" >> $GITHUB_OUTPUT
-          
+      
+      # Announce good-first-issue in Apprentice Discord channel
       - name: Post to Apprentice channel
         if: steps.route.outputs.route_to == 'apprentices'
         env:
@@ -72,7 +77,8 @@ jobs:
             --issue-number "$ISSUE_NUMBER" \
             --issue-labels "$ISSUE_LABELS" \
             --bot-token "$DISCORD_BOT_TOKEN"
-            
+      
+      # Find Sentinel with capacity to take the assignment
       - name: Find available Sentinel
         if: steps.route.outputs.route_to == 'sentinel'
         id: find_sentinel

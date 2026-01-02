@@ -1,5 +1,10 @@
-"""
-Issue router - Route issues to Apprentices or Sentinels.
+"""n
+Issue Router - Route issues to Apprentices or Sentinels based on labels.
+
+Routing logic:
+- good-first-issue (no triage-needed) → Apprentices Discord channel
+- triage-needed → Skip (needs maintainer review first)
+- Other issues → Assign to available Sentinel
 """
 
 import argparse

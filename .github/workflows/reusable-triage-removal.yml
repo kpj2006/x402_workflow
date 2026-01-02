@@ -1,3 +1,5 @@
+# This workflow tracks when triage-needed label is removed and issue gets assigned
+# Records manual assignments to contributor TOML for tracking purposes
 name: Reusable Triage Removal Tracking
 
 on:
@@ -26,6 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # Verify if issue has an assignee after triage label removal
       - name: Check if issue is assigned
         id: check_assigned
         uses: actions/github-script@v7
@@ -66,7 +69,8 @@ jobs:
         if: steps.check_assigned.outputs.has_assignee == 'true'
         run: |
           pip install -r automation/requirements.txt
-          
+      
+      # Check if assignee is in contributor registry (onboarded)
       - name: Check if assignee is existing contributor
         if: steps.check_assigned.outputs.has_assignee == 'true'
         id: check
@@ -83,7 +87,8 @@ jobs:
           
           EXISTS=$(jq -r '.exists' ../check_result.json)
           echo "exists=$EXISTS" >> $GITHUB_OUTPUT
-          
+      
+      # Record manual assignment in contributor's TOML file
       - name: Add manual assignment to TOML
         if: steps.check_assigned.outputs.has_assignee == 'true' && steps.check.outputs.exists == 'true'
         env:

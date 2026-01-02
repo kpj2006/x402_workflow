@@ -1,3 +1,5 @@
+# This workflow handles promotion from Apprentice to Sentinel role
+# Checks if contributor has 3 quality PRs, updates TOML, swaps Discord roles
 name: Reusable Promotion Workflow
 
 on:
@@ -32,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # Clone automation scripts repository
       - name: Checkout automation scripts
         uses: actions/checkout@v4
         with:
@@ -47,7 +50,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r automation/requirements.txt
-          
+      
+      # Check if contributor has 3+ quality PRs and is eligible for promotion
       - name: Check promotion eligibility
         id: check_eligibility
         env:
@@ -84,7 +88,8 @@ jobs:
           echo "Contributor not eligible for promotion yet."
           echo "Current role: ${{ steps.check_eligibility.outputs.current_role }}"
           echo "PR count: ${{ steps.check_eligibility.outputs.pr_count }}"
-          
+      
+      # Update contributor's role from Apprentice to Sentinel in Gist
       - name: Update role in TOML
         if: steps.check_eligibility.outputs.eligible == 'true'
         env:

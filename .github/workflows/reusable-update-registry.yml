@@ -1,3 +1,5 @@
+# This workflow updates the contributor registry (Gist) after any merged PR
+# It tracks PRs, lines changed, and validates if PRs count toward promotion
 name: Reusable Update Registry Workflow
 
 on:
@@ -32,6 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      # Clone the automation scripts repository
       - name: Checkout automation scripts
         uses: actions/checkout@v4
         with:
@@ -47,7 +50,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r automation/requirements.txt
-          
+      
+      # Check if contributor is already onboarded in the registry
       - name: Check if contributor exists
         id: check
         env:
@@ -69,7 +73,8 @@ jobs:
         run: |
           echo "Contributor not yet onboarded. Skipping registry update."
           echo "This will be handled by the onboard workflow."
-          
+      
+      # Check if PR meets quality thresholds (min lines, excluded labels)
       - name: Validate PR quality
         if: steps.check.outputs.exists == 'true'
         id: validate_quality
@@ -88,7 +93,8 @@ jobs:
           LINES_CHANGED=$(jq -r '.lines_changed' ../quality_check.json)
           echo "counts=$COUNTS" >> $GITHUB_OUTPUT
           echo "lines_changed=$LINES_CHANGED" >> $GITHUB_OUTPUT
-          
+      
+      # Update the contributor's TOML entry in Gist with new PR data
       - name: Update contributor TOML
         if: steps.check.outputs.exists == 'true'
         env:
