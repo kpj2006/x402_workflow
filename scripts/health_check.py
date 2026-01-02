@@ -210,19 +210,26 @@ class HealthChecker:
                 print(f"    ⏰ Deadline passed by {abs(time_info['hours_remaining'])} hours")
                 self.reassign_issue(sentinel, assignment)
             
-            elif time_info['hours_remaining'] <= 24:
-                # Send warning (within 24 hours of deadline)
+            elif time_info['hours_remaining'] <= 72:
+                # Send warning (3 days before deadline)
                 print(f"    ⚠️  Warning: {time_info['hours_remaining']} hours remaining")
                 self.send_deadline_warning(sentinel, issue_status.get('issue'), time_info)
                 self.warnings_sent += 1
     
     def send_deadline_warning(self, sentinel: Dict[str, Any], issue, time_info: Dict[str, Any]):
-        """Send deadline approaching warning."""
+        """Send deadline approaching warning (3 days before)."""
         try:
             if issue:
+                days_remaining = time_info['hours_remaining'] // 24
+                hours_remaining = time_info['hours_remaining'] % 24
+                
+                time_msg = f"{days_remaining} day(s)"
+                if hours_remaining > 0:
+                    time_msg += f" and {hours_remaining} hour(s)"
+                
                 comment = f"""⏰ **Deadline Reminder**
 
-@{sentinel['username']}, this issue has {time_info['hours_remaining']} hours remaining until deadline.
+@{sentinel['username']}, this issue has {time_msg} remaining until deadline.
 
 Need help? Add `help-wanted` label or reach out in Discord.
 Unexpected complexity? Ask a Knight to add `time-taken` label for extended time."""

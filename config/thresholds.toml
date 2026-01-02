@@ -27,9 +27,9 @@ wallet_address_prefix = "0x"
 wallet_address_length = 42
 
 [health_check]
-# Run health check every N days
-interval_days = 5
-# Reassign issues older than this many days
+# Run health check daily to catch 3-day warnings within 5-day deadline
+interval_days = 1
+# Reassign issues older than this many days (matches Sentinel deadline)
 reassign_after_days = 5
 # Alert Knights if Sentinel has more than this many stale issues
 stale_issue_alert_threshold = 2
