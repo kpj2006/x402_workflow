@@ -57,9 +57,13 @@ class GistManager:
         return os.path.join(self.repo_dir, filename)
     
     def create_contributor(self, username: str, discord_id: str, wallet: str,
-                          repo_name: str, pr_number: int, lines_changed: int = 0) -> bool:
+                          repo_name: str, pr_number: int, lines_changed: int = 0,
+                          discord_verified: bool = True) -> bool:
         """
         Create new contributor TOML file.
+        
+        Parameters:
+            discord_verified: Set to False if Discord role assignment failed
         
         Edge cases:
         - File already exists (skip)
@@ -82,7 +86,7 @@ class GistManager:
                 },
                 'discord': {
                     'user_id': discord_id,
-                    'verified': True
+                    'verified': discord_verified
                 },
                 'wallet': {
                     'address': wallet,
@@ -319,6 +323,8 @@ def main():
     parser.add_argument('--gist-pat', required=True, help='Gist PAT')
     parser.add_argument('--username', help='GitHub username')
     parser.add_argument('--discord-id', help='Discord user ID')
+    parser.add_argument('--discord-verified', type=str, default='true',
+                       help='Discord verification status (true/false)')
     parser.add_argument('--wallet', help='Wallet address')
     parser.add_argument('--repo-name', help='Repository name')
     parser.add_argument('--pr-number', type=int, help='PR number')
@@ -335,8 +341,9 @@ def main():
         
         if args.action == 'create':
             lines = args.lines_changed if args.lines_changed else 0
+            discord_verified = getattr(args, 'discord_verified', 'true').lower() == 'true'
             manager.create_contributor(args.username, args.discord_id, args.wallet,
-                                      args.repo_name, args.pr_number, lines)
+                                      args.repo_name, args.pr_number, lines, discord_verified)
         
         elif args.action == 'update_pr':
             import json

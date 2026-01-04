@@ -126,7 +126,7 @@ jobs:
   complete-onboarding:
     needs: validate
     if: needs.validate.outputs.validated == 'true'
-    uses: automation-workflows/contributor-automation/.github/workflows/reusable-onboard-NEW.yml@main
+    uses: automation-workflows/contributor-automation/.github/workflows/reusable-first-onboard-save.yml@main
     with:
       pr_number: ${{ inputs.issue_number }}
       repo_name: ${{ inputs.repo_name }}

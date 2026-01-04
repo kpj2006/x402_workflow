@@ -30,16 +30,16 @@ Complete reference for all workflows, scripts, and configuration options.
 PR MERGED
     │
     ├─ first-time-contributor label?
-    │  YES → onboard-trigger.yml
+    │  YES → onboard-first-comment-trigger.yml
     │         (post comment asking for Discord/wallet)
     │              │
     │              ▼
     │         PR COMMENT (from PR author)
-    │         onboard-response-trigger.yml
-    │         (validates PR comment, calls reusable-onboard-response.yml)
+    │         onboard-first-response-trigger.yml
+    │         (validates PR comment, calls reusable-first-onboard-response.yml)
     │              │
     │              ▼
-    │         reusable-onboard-response.yml
+    │         reusable-first-onboard-response.yml
     │         JOB 1: validate
     │         - Verify PR merged + has label
     │         - Check commenter is PR author
@@ -47,10 +47,10 @@ PR MERGED
     │              │
     │              ▼
     │         JOB 2: complete-onboarding
-    │         Calls → reusable-onboard-NEW.yml
+    │         Calls → reusable-first-onboard-save.yml
     │              │
     │              ▼
-    │         reusable-onboard-NEW.yml
+    │         reusable-first-onboard-save.yml
     │         - Configure Git identity
     │         - Create TOML in Gist
     │         - Assign Discord Apprentice role (via Discord API)
@@ -205,7 +205,7 @@ These workflows live in `aossie/contributor-automation` and are called by trigge
 
 **Secrets:** `GIST_PAT`, `DISCORD_BOT_TOKEN`, `DISCORD_GUILD_ID`, `DISCORD_APPRENTICE_ROLE_ID`
 
-**Called by:** `reusable-onboard-response.yml`
+**Called by:** `reusable-first-onboard-response.yml`
 
 **Important:** Configures Git identity before committing to Gist:
 ```bash
@@ -215,7 +215,7 @@ git config --global user.name "GitHub Actions Bot"
 
 ---
 
-### 2. reusable-onboard-response.yml
+### 2. reusable-first-onboard-response.yml
 
 **Purpose:** Validate user response and extract Discord ID + wallet from comment
 
@@ -233,13 +233,13 @@ git config --global user.name "GitHub Actions Bot"
 - `issues: write` - Post validation error comments
 - `pull-requests: write` - Access PR data and comment on PRs
 
-**Called by:** `onboard-response-trigger.yml`
+**Called by:** `onboard-first-response-trigger.yml`
 
 **Logic:**
 1. Validates PR is merged and has `first-time-contributor` label
 2. Checks commenter is PR author
 3. Extracts Discord ID and wallet using regex (passed via environment variable to handle special characters)
-4. Calls `reusable-onboard-NEW.yml` if valid
+4. Calls `reusable-first-onboard-save.yml` if valid
 
 **Implementation Notes:**
 - Uses two jobs: `validate` (extracts data) → `complete-onboarding` (calls nested reusable workflow)
@@ -374,7 +374,7 @@ git config --global user.name "GitHub Actions Bot"
 
 These workflows live in each AOSSIE project's `.github/workflows/` folder. They are lightweight triggers that call reusable workflows.
 
-### onboard-trigger.yml
+### onboard-first-comment-trigger.yml
 
 **Trigger:** `pull_request.closed` (when merged + first-time-contributor label)
 
@@ -384,7 +384,7 @@ These workflows live in each AOSSIE project's `.github/workflows/` folder. They 
 
 ---
 
-### onboard-response-trigger.yml
+### onboard-first-response-trigger.yml
 
 **Trigger:** `issue_comment.created` (on PR comments only)
 
@@ -397,7 +397,7 @@ permissions:
 
 **Flow:**
 1. User responds with Discord ID and wallet
-2. Calls `reusable-onboard-response.yml`
+2. Calls `reusable-first-onboard-response.yml`
 3. Validates and completes onboarding
 
 **Secrets passed explicitly:**
