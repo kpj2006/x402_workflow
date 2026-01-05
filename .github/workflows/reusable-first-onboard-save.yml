@@ -82,11 +82,27 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
           
-      - name: Skip if already onboarded
+      # If contributor already exists, update their PR stats instead of creating new entry
+      - name: Update PR stats for existing contributor
         if: steps.check_existing.outputs.exists == 'true'
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          PR_AUTHOR: ${{ inputs.pr_author }}
+          REPO_NAME: ${{ inputs.repo_name }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          LINES_CHANGED: ${{ inputs.lines_changed }}
         run: |
-          echo "✓ Contributor already onboarded. Skipping."
-          exit 0
+          echo "✓ Contributor already exists. Updating PR stats..."
+          cd automation
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions Bot"
+          python scripts/gist_manager.py \
+            --action update_pr \
+            --username "$PR_AUTHOR" \
+            --repo-name "$REPO_NAME" \
+            --pr-number "$PR_NUMBER" \
+            --lines-changed "$LINES_CHANGED" \
+            --gist-pat "$GIST_PAT"
       
       # Configure Git identity for Gist commits
       - name: Configure Git
