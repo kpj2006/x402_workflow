@@ -41,7 +41,20 @@ class DiscordManager:
                 print(f"✓ Role {role_id} assigned to user {user_id}")
                 return True
             elif response.status_code == 404:
-                print(f"✗ User {user_id} not found in server")
+                print(f"✗ User {user_id} not found in server {guild_id}")
+                print(f"   Make sure the user is a member of the Discord server")
+                return False
+            elif response.status_code == 403:
+                error_data = response.json() if response.text else {}
+                error_code = error_data.get('code', 'unknown')
+                error_msg = error_data.get('message', 'No details')
+                print(f"✗ Permission denied (403): {error_msg} [Code: {error_code}]")
+                print(f"   Troubleshooting steps:")
+                print(f"   1. Bot needs 'Manage Roles' permission in server")
+                print(f"   2. Bot's role must be ABOVE the role being assigned")
+                print(f"   3. Check role hierarchy in Discord Server Settings → Roles")
+                print(f"   4. Verify Guild ID: {guild_id}")
+                print(f"   5. Verify Role ID: {role_id}")
                 return False
             elif response.status_code == 429:
                 # Rate limited
