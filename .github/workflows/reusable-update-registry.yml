@@ -20,7 +20,7 @@ on:
       lines_changed:
         description: 'Total lines changed (additions + deletions)'
         required: true
-        type: number
+        type: string
       pr_labels:
         description: 'PR labels (JSON array)'
         required: true
