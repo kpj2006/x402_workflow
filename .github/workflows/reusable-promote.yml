@@ -51,6 +51,22 @@ jobs:
         run: |
           pip install -r automation/requirements.txt
       
+      - name: Verify secrets configuration
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_GUILD_ID: ${{ secrets.DISCORD_GUILD_ID }}
+          DISCORD_APPRENTICE_ROLE_ID: ${{ secrets.DISCORD_APPRENTICE_ROLE_ID }}
+          DISCORD_SENTINEL_ROLE_ID: ${{ secrets.DISCORD_SENTINEL_ROLE_ID }}
+        run: |
+          echo "Checking required secrets..."
+          
+          [ -n "$GIST_PAT" ] && echo "✓ GIST_PAT (${#GIST_PAT} chars)" || echo "❌ GIST_PAT missing"
+          [ -n "$DISCORD_BOT_TOKEN" ] && echo "✓ DISCORD_BOT_TOKEN (${#DISCORD_BOT_TOKEN} chars)" || echo "❌ DISCORD_BOT_TOKEN missing"
+          [ -n "$DISCORD_GUILD_ID" ] && echo "✓ DISCORD_GUILD_ID ($DISCORD_GUILD_ID)" || echo "❌ DISCORD_GUILD_ID missing"
+          [ -n "$DISCORD_APPRENTICE_ROLE_ID" ] && echo "✓ DISCORD_APPRENTICE_ROLE_ID ($DISCORD_APPRENTICE_ROLE_ID)" || echo "❌ DISCORD_APPRENTICE_ROLE_ID missing"
+          [ -n "$DISCORD_SENTINEL_ROLE_ID" ] && echo "✓ DISCORD_SENTINEL_ROLE_ID ($DISCORD_SENTINEL_ROLE_ID)" || echo "❌ DISCORD_SENTINEL_ROLE_ID missing"
+      
       # Check if contributor has 3+ quality PRs and is eligible for promotion
       - name: Check promotion eligibility
         id: check_eligibility
