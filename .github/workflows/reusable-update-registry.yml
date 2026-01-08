@@ -4,6 +4,10 @@ name: Reusable Update Registry Workflow
 
 on:
   workflow_call:
+    
+permissions:
+  contents: write
+  pull-requests: read
     inputs:
       pr_number:
         description: 'Pull request number'
