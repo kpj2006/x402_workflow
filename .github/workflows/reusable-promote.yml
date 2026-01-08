@@ -28,6 +28,9 @@ on:
         required: true
       DISCORD_SENTINEL_ROLE_ID:
         required: true
+permissions:
+  contents: read  # For checking out repositories
+  pull-requests: write  # For posting comments on PRs
 
 jobs:
   promote:
