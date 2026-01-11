@@ -100,66 +100,43 @@ jobs:
             cat "$GITHUB_OUTPUT"
           fi
 
-      - name: Post settlement result (Demo)
+      - name: logging
         if: success()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            let txHash = 'pending';
-            let explorerUrl = '';
-            try {
-              const fs = require('fs');
-              const outputPath = process.env.GITHUB_OUTPUT || '';
-              if (outputPath && fs.existsSync(outputPath)) {
-                const outputs = fs.readFileSync(outputPath, 'utf8');
-                const txMatch = outputs.match(/TX_HASH=([^\n]+)/);
-                const urlMatch = outputs.match(/EXPLORER_URL=([^\n]+)/);
-                if (txMatch) txHash = txMatch[1];
-                if (urlMatch) explorerUrl = urlMatch[1];
-              }
-            } catch (e) {
-              console.log('Could not read outputs:', e.message);
-            }
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ inputs.issue_number }},
-              body: [
-                " **x402 Settlement Completed (Demo, Monad)**",
-                "",
-                `• Amount: **${{ inputs.score_amount }} tokens**`,
-                `• Recipient: \`${{ inputs.recipient_wallet }}\``,
-                `• Network: **${{ inputs.network }}**`,
-                "",
-                `###  Transaction Details`,
-                `**Hash:** \`${txHash}\``,
-                explorerUrl ? `**Explorer:** [View on MonadVision](${explorerUrl})` : "",
-                "",
-                `> Settlement successful! Tokens have been minted to the recipient address.`
-              ].filter(Boolean).join("\n")
-            });
+        run: |
+          echo "x402 Settlement Completed (Demo, Monad)"
+          echo "Amount: ${{ inputs.score_amount }} tokens"
+          echo "Recipient: ${{ inputs.recipient_wallet }}"
+          echo "Network: ${{ inputs.network }}"
+          echo "--- Transaction Details ---"
+          TX_HASH=$(grep '^TX_HASH=' "$GITHUB_OUTPUT" | cut -d'=' -f2)
+          EXPLORER_URL=$(grep '^EXPLORER_URL=' "$GITHUB_OUTPUT" | cut -d'=' -f2)
+          echo "Hash: $TX_HASH"
+          if [ -n "$EXPLORER_URL" ]; then
+            echo "Explorer: $EXPLORER_URL"
+          fi
+          echo "Settlement successful! Tokens have been minted to the recipient address."
 
-      - name: Post error notification (Demo)
-        if: failure()
-        uses: actions/github-script@v7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          script: |
-            const errorMsg = process.env.ERROR_MESSAGE || 'Settlement failed';
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: ${{ inputs.issue_number }},
-              body: [
-                " **x402 Settlement Failed (Demo)**",
-                "",
-                `• Network: **${{ inputs.network }}**`,
-                `• Amount: **${{ inputs.score_amount }}**`,
-                `• Recipient: \`${{ inputs.recipient_wallet }}\``,
-                "",
-                `**Error:** ${errorMsg}`,
-                "",
-                "Please check workflow logs for details."
-              ].join("\n")
-            });
+      # - name: Post error notification (Demo)
+      #   if: failure()
+      #   uses: actions/github-script@v7
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     script: |
+      #       const errorMsg = process.env.ERROR_MESSAGE || 'Settlement failed';
+      #       await github.rest.issues.createComment({
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         issue_number: ${{ inputs.issue_number }},
+      #         body: [
+      #           " **x402 Settlement Failed (Demo)**",
+      #           "",
+      #           `• Network: **${{ inputs.network }}**`,
+      #           `• Amount: **${{ inputs.score_amount }}**`,
+      #           `• Recipient: \`${{ inputs.recipient_wallet }}\``,
+      #           "",
+      #           `**Error:** ${errorMsg}`,
+      #           "",
+      #           "Please check workflow logs for details."
+      #         ].join("\n")
+      #       });
