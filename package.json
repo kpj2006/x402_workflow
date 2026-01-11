@@ -1,0 +1,38 @@
+{
+  "name": "contributor-automation-x402",
+  "version": "1.0.0",
+  "description": "x402 settlement engine for multi-contributor GitHub score distribution on Monad",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "settle": "node scripts/sendScore.js"
+  },
+  "keywords": [
+    "x402",
+    "monad",
+    "github-actions",
+    "blockchain",
+    "settlement",
+    "thirdweb",
+    "erc20",
+    "non-transferable"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@octokit/rest": "^21.0.2",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.13.4",
+    "minimist": "^1.2.8",
+    "thirdweb": "^5.79.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

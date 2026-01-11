@@ -1,4 +1,0 @@
-toml>=0.10.2
-requests>=2.31.0
-PyGithub>=2.1.1
-python-dateutil>=2.8.2
